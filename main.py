@@ -1,7 +1,8 @@
 import discord
-
+import os 
 from discord.ext import commands
 import yaml
+import asyncio
 
 # Load config file
 with open("./config.yml", "r", encoding="utf-8") as file:
@@ -17,10 +18,21 @@ bot = commands.Bot(
 
 @bot.event
 async def on_ready():
-   # Set bot status
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=config["Watching Status"]))
+   # Display running status and set activity
+   print(f'\n\nLogged in as: {bot.user.name} - {bot.user.id}\nVersion: {discord.__version__}\n')
+   await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=config["Watching Status"]))
 
-try:
-    bot.run(config["Token"])
-except Exception as e:
-    print(f"Fatal error: {e}")
+
+# Load cogs 
+async def load_extensions():
+    for file in os.listdir("cogs"):
+        if file.endswith(".py"):
+            await bot.load_extension(f"cogs.{file[:-3]}")
+
+# Run bot
+async def main():
+    async with bot:
+        await load_extensions()
+        await bot.start(config["Token"])
+
+asyncio.run(main())
