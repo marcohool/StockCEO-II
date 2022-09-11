@@ -1,2 +1,8 @@
 # Discord bot token
 Token:
+
+# Bot prefix
+Prefix: "$"
+
+# Bot status displayed on Discord
+Watching Status: ""
