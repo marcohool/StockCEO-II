@@ -12,7 +12,13 @@ class Stocks(commands.Cog):
 
    @commands.command()
    async def stats(self, ctx, ticker: str):
-      data = yf.download(tickers = ticker, period='1y', interval='1d')
+      
+      # Set period and interval for graph generation
+      period = "1y"
+      interval = "1d"
+
+      # Download data for given ticker
+      data = yf.download(tickers = ticker, period = period, interval = interval)
 
       # If ticker not found
       if list(shared._ERRORS.keys()):
@@ -22,19 +28,18 @@ class Stocks(commands.Cog):
       # Get ticker      
       ticker = yf.Ticker(ticker)
 
-      # Shorten description to one sentence
+      # Get long description for ticker
       desc = ticker.info.get('longBusinessSummary')
       
-      # If ticker doesn't have longBusinessSumarry
+      # Shorten description to one sentence
       if desc:
          desc = desc.split('.').pop(0)
          # If company as Inc. in description, ignore full stop
          if desc.endswith("Inc"):
             desc += f". {ticker.info['longBusinessSummary'].split('.').pop(1)}."
+      # If ticker doesn't have longBusinessSumarry, use description
       else:
          desc = ticker.info['description']
-
-      
 
       # Set plot 
       fplt.plot(
@@ -44,6 +49,7 @@ class Stocks(commands.Cog):
             mav = 4,
             figsize = (12, 9),
             volume = True,
+            title= f"{ticker.info.get('shortName')} | {data.index[0].date()} to {data.index[-1].date()}",
             ylabel_lower='Volume',
             xrotation = 0,
             scale_padding={'left': 0, 'top': 0, 'right': 0.75, 'bottom': 0.2},
