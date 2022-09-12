@@ -3,6 +3,11 @@ import os
 from discord.ext import commands
 import yaml
 import asyncio
+import logging
+import sys
+
+# Set logging config
+logging.basicConfig(stream=sys.stdout, level=logging.WARNING)
 
 # Load config file
 with open("./config.yml", "r", encoding="utf-8") as file:

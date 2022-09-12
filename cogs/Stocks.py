@@ -12,36 +12,52 @@ class Stocks(commands.Cog):
 
    @commands.command()
    async def stats(self, ctx, ticker: str):
-      data = yf.download(tickers = ticker, period='30d', interval='1h')
+      data = yf.download(tickers = ticker, period='1y', interval='1d')
 
       # If ticker not found
       if list(shared._ERRORS.keys()):
          await ctx.send("Stock ticker not found")
          return
 
-      # Get stock name      
+      # Get ticker      
       ticker = yf.Ticker(ticker)
 
-      # Get company name
-      company = ticker.info['shortName']
+      # Shorten description to one sentence
+      desc = ticker.info.get('longBusinessSummary')
+      
+      # If ticker doesn't have longBusinessSumarry
+      if desc:
+         desc = desc.split('.').pop(0)
+         # If company as Inc. in description, ignore full stop
+         if desc.endswith("Inc"):
+            desc += f". {ticker.info['longBusinessSummary'].split('.').pop(1)}."
+      else:
+         desc = ticker.info['description']
+
+      
 
       # Set plot 
       fplt.plot(
             data,
             type='candle',
-            style='charles',
+            style='yahoo',
             mav = 4,
             figsize = (12, 9),
             volume = True,
             ylabel_lower='Volume',
-            scale_padding={'left': -0.25, 'top': 0, 'right': 0.75, 'bottom': 0.05},
+            xrotation = 0,
+            scale_padding={'left': 0, 'top': 0, 'right': 0.75, 'bottom': 0.2},
             ylabel= f"Share Price ({ticker.info['currency']})",
             savefig='./images/graph.png'
         )
 
+      # Build Discord embedded message
+      embed = discord.Embed(title=(f"{ticker.info['shortName']} | {ticker.info['currency']}"),
+                              description = desc)
+
       # Send image to Discord
-      embed = discord.Embed(
-            title=(f"{company} | {ticker.info['currency']}"), color=discord.Color(value=int("7EE622", 16)))
+      # embed = discord.Embed(
+      #       title=(f"{ticker.info['shortName']} | {ticker.info['currency']}"), color=discord.Color(value=int("7EE622", 16)))
       file = discord.File("images/graph.png", filename="graph.png")
       embed.set_image(url="attachment://graph.png")
       await ctx.send(file=file, embed=embed)
