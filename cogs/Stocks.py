@@ -3,7 +3,7 @@ import yfinance as yf
 import yfinance.shared as shared
 import plotly.graph_objs as go
 import mplfinance as fplt
-import os
+import math
 import discord
 
 class Stocks(commands.Cog):
@@ -60,6 +60,17 @@ class Stocks(commands.Cog):
       # Build Discord embedded message
       embed = discord.Embed(title=(f"{ticker.info['shortName']} | {ticker.info['currency']}"),
                               description = desc)
+      embed.add_field(name="Price", value=(ticker.info.get('regularMarketPrice')), inline=True)
+      embed.add_field(name="Open", value=ticker.info.get('open'), inline=True)
+      embed.add_field(name="Close", value=ticker.info.get('previousClose'), inline=True)
+      embed.add_field(name="Day Low", value=ticker.info.get('dayLow'), inline=True)
+      embed.add_field(name="Day High", value=ticker.info.get('dayHigh'), inline=True)
+      embed.add_field(name="Market Cap", value=format(ticker.info.get('marketCap')), inline=True)
+      embed.add_field(name="52-Wk High", value=ticker.info.get('fiftyTwoWeekHigh'), inline=True)
+      embed.add_field(name="52-Wk Low", value=ticker.info.get('fiftyTwoWeekLow'), inline=True)
+      embed.add_field(name="Pre-market Price", value=ticker.info.get('preMarketPrice'), inline=True)
+
+
 
       # Send image to Discord
       # embed = discord.Embed(
@@ -67,6 +78,17 @@ class Stocks(commands.Cog):
       file = discord.File("images/graph.png", filename="graph.png")
       embed.set_image(url="attachment://graph.png")
       await ctx.send(file=file, embed=embed)
+
+
+# Format large number into more readable value
+def format(n):
+   millnames = ['',' Thousand',' Million',' Billion',' Trillion']
+
+   n = float(n)
+   millidx = max(0,min(len(millnames)-1,
+      int(math.floor(0 if n == 0 else math.log10(abs(n))/3))))
+
+   return '{:.0f}{}'.format(n / 10**(3 * millidx), millnames[millidx])
 
 
 async def setup(bot):
