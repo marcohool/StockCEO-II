@@ -10,6 +10,7 @@ class Stocks(commands.Cog):
    def __init__(self, bot):
       self.bot = bot
 
+   # Display statistics & 1 month price history candlestick chart of requested stock 
    @commands.command()
    async def stats(self, ctx, ticker = None):
       
@@ -60,13 +61,11 @@ class Stocks(commands.Cog):
       await ctx.send(file=file, embed=embed)
 
 
-
+   # Display candlestick chart of selected stock and period (default 1 month)
    @commands.command()
-   async def graph(self, ctx, ticker = None, period = "0"):
+   async def graph(self, ctx, ticker = None, period = "1m"):
 
-      if period == "0":
-         period = "1mo"
-
+      # Generate graph and catch any raised exceptions
       try:
          ticker = generateGraph(ticker, period)
       except TickerException:
@@ -86,9 +85,10 @@ class Stocks(commands.Cog):
       file = discord.File("images/graph.png", filename="graph.png")
       await ctx.send(file=file, embed=embed)
 
-
+# Generate graph image given selected stock and period
 def generateGraph(ticker, period):
    
+   # If no ticker is provided raise exception
    if ticker is None:
       raise ParameterException
 
