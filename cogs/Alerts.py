@@ -25,15 +25,21 @@ class Alerts(commands.Cog):
       if difference is None:
          await ctx.send("Please enter the difference in price you want to set the alert for ($addalert aapl +5%")
          return
-      
-      # Acknowledge and remove '-' or '+' from difference string
+
+      # Set variables
       negativeChange = False
+      priceGiven = True
+      currentPrice = int(stock.info.get('regularMarketPrice'))
+
+      # Acknowledge and remove '-' or '+' from difference string
       if difference[0] == '-' or difference[0] == '+':
+         priceGiven = False
          negativeChange = difference[0] == '-'
          difference = difference[1:]
       
       # Remove '%' char if included
       if difference[-1] == '%':
+         priceGiven = False
          difference = difference[:-1]
 
       # Validate difference is a number
@@ -41,16 +47,26 @@ class Alerts(commands.Cog):
          await ctx.send("Please enter a valid number for the difference")
          return
       
-      # Validate difference range
-      if int(difference) > 25:
-         await ctx.send("The maximum difference to set an alert for is +/- 25%")
-         return
+      # If direct price is given, check it lies in boundary +- 25%
+      if priceGiven:
+         if currentPrice*1.25 < int(difference) or currentPrice*0.75 > int(difference):
+            await ctx.send("The maximum difference to set an alert for is +/- 25%")
+            return
+         else:
+            targetPrice = int(difference)
 
-      # Calculate target price
-      if negativeChange:
-         targetPrice = int(stock.info.get('regularMarketPrice')) * (1 - (int(difference)/100))
+      # Else if % change is given
       else:
-         targetPrice = int(stock.info.get('regularMarketPrice')) * (1 + (int(difference)/100))
+       # Validate range difference
+         if int(difference) > 25:
+            await ctx.send("The maximum difference to set an alert for is +/- 25%")
+            return
+         else:
+            # Calculate target price
+            if negativeChange:
+               targetPrice = int(currentPrice) * (1 - (int(difference)/100))
+            else:
+               targetPrice = int(currentPrice) * (1 + (int(difference)/100))
       
       # Round to 2 d.p.
       targetPrice = round(targetPrice, 3)
@@ -64,7 +80,7 @@ class Alerts(commands.Cog):
             connection.commit()
       
       # Send alert added message
-      await ctx.send(f"Alert added for {ticker.upper()}, you will be notifed once the price hits {formatNumb(targetPrice)}")
+      await ctx.send(f"Alert added for {ticker.upper()}, you will be notifed once the price hits {formatNumb(targetPrice)} {stock.info.get('currency')}")
 
    @commands.command()
    async def viewAlerts(self, ctx):
