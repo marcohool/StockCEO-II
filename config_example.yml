@@ -6,3 +6,18 @@ Prefix: "$"
 
 # Bot status displayed on Discord
 Watching Status: ""
+
+# Database host
+DB-Host:
+
+# Database user
+DB-User:
+
+# Database password
+DB-Password:
+
+# Database name
+DB-Name:
+
+# Database port
+DB-Port:
