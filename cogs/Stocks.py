@@ -11,13 +11,16 @@ class Stocks(commands.Cog):
       self.bot = bot
 
    @commands.command()
-   async def stats(self, ctx, ticker: str):
+   async def stats(self, ctx, ticker = None):
       
       # Generate past 1 year graph image for ticker
       try:
          ticker = generateGraph(ticker, "1y")
       except TickerException:
          await ctx.send("Invalid ticker")
+         return
+      except ParameterException:
+         await ctx.send("No ticker selected\n\nUse the command in the format `$graph [ticker] [(optional) period]`")
          return
       
       # Get long description for ticker
@@ -59,8 +62,8 @@ class Stocks(commands.Cog):
 
 
    @commands.command()
-   async def graph(self, ctx, ticker, period = "0"):
-      
+   async def graph(self, ctx, ticker = None, period = "0"):
+
       if period == "0":
          period = "1mo"
 
@@ -70,7 +73,10 @@ class Stocks(commands.Cog):
          await ctx.send("Invalid ticker")
          return
       except PeriodException:
-         await ctx.send("Invalid period")
+         await ctx.send("Invalid period - Valid periods are: `1d`, `5d`, `1mo`, `3mo`, `6mo`, `1y`, `ytd`, `2y`, `5y`, `10y` & `max`")
+         return
+      except ParameterException:
+         await ctx.send("No ticker selected\n\nUse the command in the format `$graph [ticker] [(optional) period]`")
          return
 
 
@@ -83,8 +89,11 @@ class Stocks(commands.Cog):
 
 def generateGraph(ticker, period):
    
+   if ticker is None:
+      raise ParameterException
+
    # Set period and interval for graph generation
-   periodIntervals = { "1d" : "1m", "5d" : "5m", "1mo" : "30m", "3mo" : "90m", "6mo" : "1d", "1y" : "1d", "ytd" : "1d", "2y" : "1d", "5y" : "1wk", "10y" : "1wk", "max" : "1wk" }
+   periodIntervals = { "1d" : "1m", "5d" : "5m", "1mo" : "30m", "3mo" : "1h", "6mo" : "1d", "1y" : "1d", "ytd" : "1d", "2y" : "1d", "5y" : "1wk", "10y" : "1wk", "max" : "1wk" }
 
    # Get interval from given period
    interval = periodIntervals.get(period)
@@ -132,9 +141,11 @@ def format(n):
 
    return '{:.0f}{}'.format(n / 10**(3 * millidx), millnames[millidx])
 
+
 # Add cog to bot
 async def setup(bot):
    await bot.add_cog(Stocks(bot))
+
 
 # Exception raised upon recieving an invalid ticker
 class TickerException(Exception):
@@ -142,4 +153,8 @@ class TickerException(Exception):
 
 # Exception raised upon recieving an invalid period request
 class PeriodException(Exception):
+   pass
+
+# Exception raised upon recieving invalid or missing parameters in command request
+class ParameterException(Exception):
    pass
