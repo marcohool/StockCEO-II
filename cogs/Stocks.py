@@ -59,16 +59,40 @@ class Stocks(commands.Cog):
 
 
    @commands.command()
-   async def graph(self, ctx, ticker: str, duration: str):
-      pass
+   async def graph(self, ctx, ticker, period = "0"):
+      
+      if period == "0":
+         period = "1mo"
+
+      try:
+         ticker = generateGraph(ticker, period)
+      except TickerException:
+         await ctx.send("Invalid ticker")
+         return
+      except PeriodException:
+         await ctx.send("Invalid period")
+         return
 
 
-def generateGraph(ticker, peroid):
+      # Build and send embed
+      embed = discord.Embed(title=(f"{ticker.info['shortName']} | {ticker.info['currency']}"))
+      embed.set_image(url="attachment://graph.png")
+      file = discord.File("images/graph.png", filename="graph.png")
+      await ctx.send(file=file, embed=embed)
+
+
+def generateGraph(ticker, period):
    
    # Set period and interval for graph generation
-   period = "1y"
-   interval = "1d"
+   periodIntervals = { "1d" : "1m", "5d" : "5m", "1mo" : "30m", "3mo" : "90m", "6mo" : "1d", "1y" : "1d", "ytd" : "1d", "2y" : "1d", "5y" : "1wk", "10y" : "1wk", "max" : "1wk" }
 
+   # Get interval from given period
+   interval = periodIntervals.get(period)
+   
+   # Raise exception if interval is invalid
+   if interval is None:
+      raise PeriodException
+      
    # Download data for given ticker
    data = yf.download(tickers = ticker, period = period, interval = interval)
 
@@ -84,12 +108,13 @@ def generateGraph(ticker, peroid):
          data,
          type='candle',
          style='yahoo',
-         mav = 4,
+         #mav = 4,
          figsize = (12, 9),
          volume = True,
          title= f"{ticker.info.get('shortName')} | {data.index[0].date()} to {data.index[-1].date()}",
          ylabel_lower='Volume',
          xrotation = 0,
+         warn_too_much_data = 1000,
          scale_padding={'left': 0, 'top': 0, 'right': 0.75, 'bottom': 0.2},
          ylabel= f"Share Price ({ticker.info['currency']})",
          savefig='./images/graph.png'
@@ -107,8 +132,14 @@ def format(n):
 
    return '{:.0f}{}'.format(n / 10**(3 * millidx), millnames[millidx])
 
+# Add cog to bot
 async def setup(bot):
    await bot.add_cog(Stocks(bot))
 
+# Exception raised upon recieving an invalid ticker
 class TickerException(Exception):
+   pass
+
+# Exception raised upon recieving an invalid period request
+class PeriodException(Exception):
    pass
