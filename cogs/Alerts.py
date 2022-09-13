@@ -27,6 +27,7 @@ class Alerts(commands.Cog):
          return
       
       # Acknowledge and remove '-' or '+' from difference string
+      negativeChange = False
       if difference[0] == '-' or difference[0] == '+':
          negativeChange = difference[0] == '-'
          difference = difference[1:]
@@ -50,6 +51,52 @@ class Alerts(commands.Cog):
          targetPrice = int(stock.info.get('regularMarketPrice')) * (1 - (int(difference)/100))
       else:
          targetPrice = int(stock.info.get('regularMarketPrice')) * (1 + (int(difference)/100))
+      
+      # Round to 2 d.p.
+      targetPrice = round(targetPrice, 3)
+
+      # Insert alert into database
+      connection = getDBConnection()
+      with connection:
+         with connection.cursor() as cursor:
+            sql = f"INSERT INTO alerts (stock_ticker, set_price, target_price, user_id, channel_id) VALUES (%s, %s, %s, %s, %s)"
+            cursor.execute(sql, (ticker, difference, targetPrice, ctx.author.id, ctx.channel.id))
+            connection.commit()
+      
+      # Send alert added message
+      await ctx.send(f"Alert added for {ticker.upper()}, you will be notifed once the price hits {formatNumb(targetPrice)}")
+
+   @commands.command()
+   async def viewAlerts(self, ctx):
+
+      connection = getDBConnection()
+
+      # Search database
+      with connection:
+         with connection.cursor() as cursor:
+            sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
+            cursor.execute(sql, ctx.author.id)
+            results = cursor.fetchall()
+            
+      # If no alerts retreived
+      if cursor.rowcount == 0:
+         await ctx.send("You have no alerts set.\n\nYou can add alerts by using the command `$addalert [stock ticker] [% change]`")
+         return
+      
+      # Get results
+      resultsMessage = ""
+      for result in results:
+         ticker = yf.Ticker(result.get('stock_ticker'))
+         resultsMessage += f"\n{ticker.info.get('shortName')} ({result.get('stock_ticker').upper()}) : **{formatNumb(result.get('target_price'))} {ticker.info.get('currency')}** *currently {formatNumb(round(ticker.info.get('regularMarketPrice'), 2))}*"
+      
+      await ctx.send(f"**Alerts for {ctx.author.mention}**\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
+
+# Format large number into more readable value
+def formatNumb(number):
+   return "{:,}".format(number)
+
+# Get connection object
+def getDBConnection():
 
       # Open config file
       with open("./config.yml", "r", encoding="utf-8") as file:
@@ -61,15 +108,9 @@ class Alerts(commands.Cog):
          password=config["DB-Password"],
          database=config["DB-Name"],
          cursorclass=pymysql.cursors.DictCursor)
-
-      # Insert alert into database
-      with connection:
-         with connection.cursor() as cursor:
-            sql = f"INSERT INTO alerts (stock_ticker, set_price, target_price, user_id, channel_id) VALUES (%s, %s, %s, %s, %s)"
-            cursor.execute(sql, (ticker, difference, targetPrice, ctx.author.id, ctx.channel.id))
-            connection.commit()
       
-      await ctx.send(f"Alert added for {ticker}, you will be notifed once the price hits {targetPrice}")
+      # Return connection object
+      return connection
 
 async def setup(bot):
    await bot.add_cog(Alerts(bot))

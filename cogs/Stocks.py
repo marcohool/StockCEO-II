@@ -78,7 +78,6 @@ class Stocks(commands.Cog):
          await ctx.send("No ticker selected\n\nUse the command in the format `$graph [ticker] [(optional) period]`")
          return
 
-
       # Build and send embed
       embed = discord.Embed(title=(f"{ticker.info['shortName']} | {ticker.info['currency']}"))
       embed.set_image(url="attachment://graph.png")
