@@ -22,6 +22,13 @@ class Alerts(commands.Cog):
          await ctx.reply("Could not find the entered stock ticker")
          return
       
+      # Ensure user has not surpased maximum alert limit
+      noOfAlerts = len(getAllUserAlerts(ctx.author.id))
+      
+      if noOfAlerts >= 3:
+         await ctx.reply("There is a maximum of 3 alerts per user. Otherwise my computer will crash")
+         return
+      
       # Validate if difference argument is given
       if difference is None:
          await ctx.reply("Please enter the difference in price you want to set the alert for (e.g. `$addalert aapl +5%`), or the exact price you want the stock to reach (e.g. `$addalert aapl 340`)")
@@ -208,18 +215,21 @@ def deleteAlert(user_id, ticker = None, price = 0):
    # Delete all of users alerts
    if ticker is None and price == 0:
       sql = f"DELETE FROM alerts WHERE user_id = %s"
+      executeTuple = (user_id)
 
    # Delete all of selected ticker
    elif ticker is not None and price == 0:
       sql = f"DELETE FROM alerts WHERE user_id = %s AND stock_ticker = %s"
+      executeTuple = (user_id, ticker)
    
    # Delete specific alers
    elif ticker is not None and price != 0:
       sql = f"DELETE FROM alerts WHERE user_id = %s AND stock_ticker = %s AND target_price = %s"
+      executeTuple = (user_id, ticker, price)
 
    with connection:
       with connection.cursor() as cursor:
-         cursor.execute(sql, (user_id, ticker, price))
+         cursor.execute(sql, executeTuple)
          connection.commit()
 
 # Format large number into more readable value

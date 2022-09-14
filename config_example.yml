@@ -2,10 +2,13 @@
 Token:
 
 # Bot prefix
-Prefix: "$"
+Prefix:
+
+# Maximum alerts per user
+Max-Alerts:
 
 # Bot status displayed on Discord
-Watching Status: ""
+Watching Status:
 
 # Database host
 DB-Host:
