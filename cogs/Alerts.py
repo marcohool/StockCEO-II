@@ -2,28 +2,29 @@ from discord.ext import commands
 import yfinance as yf
 import pymysql
 import yaml
+import asyncio
 
 class Alerts(commands.Cog):
    def __init__(self, bot):
       self.bot = bot
 
-   @commands.command()
+   @commands.command(aliases=['newAlert', 'setAlert'])
    async def addAlert(self, ctx, ticker = None, difference = None):
       
       # Validate if ticker argument is given
       if ticker is None:
-         await ctx.send("Please enter a stock ticker")
+         await ctx.reply("Please enter a stock ticker")
          return
 
       # Validate if ticker exists
       stock = yf.Ticker(ticker)
       if stock.history(peroid="1d").empty:
-         await ctx.send("Could not find the entered stock ticker")
+         await ctx.reply("Could not find the entered stock ticker")
          return
       
       # Validate if difference argument is given
       if difference is None:
-         await ctx.send("Please enter the difference in price you want to set the alert for ($addalert aapl +5%")
+         await ctx.reply("Please enter the difference in price you want to set the alert for (e.g. `$addalert aapl +5%`), or the exact price you want the stock to reach (e.g. `$addalert aapl 340`)")
          return
 
       # Set variables
@@ -80,9 +81,10 @@ class Alerts(commands.Cog):
             connection.commit()
       
       # Send alert added message
-      await ctx.send(f"Alert added for {ticker.upper()}, you will be notifed once the price hits {formatNumb(targetPrice)} {stock.info.get('currency')}")
+      await ctx.reply(f"Alert added for {ticker.upper()}, you will be notifed once the price hits {formatNumb(targetPrice)} {stock.info.get('currency')}")
 
-   @commands.command()
+   # Send message with all alerts a user has set
+   @commands.command(aliases=['showAlerts', 'alerts'])
    async def viewAlerts(self, ctx):
 
       connection = getDBConnection()
@@ -96,7 +98,7 @@ class Alerts(commands.Cog):
             
       # If no alerts retreived
       if cursor.rowcount == 0:
-         await ctx.send("You have no alerts set.\n\nYou can add alerts by using the command `$addalert [stock ticker] [% change]`")
+         await ctx.reply("You have no alerts set.\n\nYou can add alerts by using the command `$addalert [stock ticker] [% change]`")
          return
       
       # Get results
@@ -105,7 +107,67 @@ class Alerts(commands.Cog):
          ticker = yf.Ticker(result.get('stock_ticker'))
          resultsMessage += f"\n{ticker.info.get('shortName')} ({result.get('stock_ticker').upper()}) : **{formatNumb(result.get('target_price'))} {ticker.info.get('currency')}** *currently {formatNumb(round(ticker.info.get('regularMarketPrice'), 2))}*"
       
-      await ctx.send(f"**Alerts for {ctx.author.mention}**\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
+      await ctx.reply(f"**Alerts for {ctx.author.mention}**\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
+
+   # Delete specific or all of a users alerts
+   @commands.command(aliases=['deleteAlert', 'remove', 'delete', 'removeAlerts', 'deleteAlerts'])
+   async def removeAlert(self, ctx, ticker = None, alertPrice = 0):
+
+      # Get connection
+      connection = getDBConnection()
+
+      # Check if message is from same user in same channel and y or n
+      def check(msg):
+         return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.lower() in ['y', 'yes', 'n', 'no']
+
+      # If no ticker selected, confirm delete all
+      if ticker is None or ticker == "all":
+         await ctx.send("You are about to delete all your alerts. Are you sure you want to proceed? (Y/N)")
+
+         # Await confirmation
+         try:
+            msg = await self.bot.wait_for("message", check = check, timeout = 15)
+         except asyncio.TimeoutError:
+            return
+         
+         # Delete all alerts from user
+         if msg.content.lower() == "yes" or msg.content.lower() == 'y':
+            with connection:
+               with connection.cursor() as cursor:
+                  sql = f"DELETE FROM alerts WHERE user_id = %s"
+                  cursor.execute(sql, ctx.author.id)
+                  connection.commit()
+                  await ctx.reply("All your alerts have been deleted")
+            return
+
+         if msg.content.lower() == "no" or 'n':
+            return
+
+      # Search for ticker in alerts from user
+      with connection:
+         with connection.cursor() as cursor:
+            sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
+            cursor.execute(sql, ctx.author.id)
+            results = cursor.fetchall()
+
+      # If no alerts retreived
+      if cursor.rowcount == 0:
+         await ctx.send(f"You have no alerts set for {ticker.upper()}")
+         return
+      
+      # If user has multiple alerts for given ticker and no specific alert is selected
+      if cursor.rowcount > 1 and alertPrice == 0:
+         await ctx.send(f"You are about to delete all alerts for {ticker.upper()}, are you sure you want to proceed? (Y/N)")
+         
+         # Await response 
+         try:
+            msg = await self.bot.wait_for("message", check = check, timeout = 15)
+         except asyncio.TimeoutError:
+            return
+         
+         if msg.content.lower() == "yes" or 'y':
+            await ctx.send("yes")
+         
 
 # Format large number into more readable value
 def formatNumb(number):
