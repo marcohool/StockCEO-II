@@ -84,7 +84,7 @@ class Alerts(commands.Cog):
       with connection:
          with connection.cursor() as cursor:
             sql = f"INSERT INTO alerts (stock_ticker, set_price, target_price, user_id, channel_id) VALUES (%s, %s, %s, %s, %s)"
-            cursor.execute(sql, (ticker, difference, targetPrice, ctx.author.id, ctx.channel.id))
+            cursor.execute(sql, (ticker, currentPrice, targetPrice, ctx.author.id, ctx.channel.id))
             connection.commit()
       
       # Send alert added message
@@ -110,7 +110,7 @@ class Alerts(commands.Cog):
       await ctx.reply(f"Alerts for {ctx.author.mention}\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
 
    # Delete specific or all of a users alerts
-   @commands.command(aliases=['delete', 'deleteAlert', 'deleteAlerts', 'remove', 'removeAlerts', 'clearAlerts'])
+   @commands.command(aliases=['delete', 'delAlert', 'delAlerts', 'deleteAlert', 'deleteAlerts', 'remove', 'removeAlerts', 'clearAlerts'])
    async def removeAlert(self, ctx, ticker = None, alertPrice = 0):
 
       # Check if message is from same user in same channel and y or n
@@ -174,6 +174,38 @@ class Alerts(commands.Cog):
                # Delete chosen alert
                deleteAlert(ctx.author.id, ticker, alertPrice)
                await ctx.reply("Alert removed")
+
+   @commands.Cog.listener()
+   async def on_ready(self):
+      
+      # Infinite loop that runs every 10 minutes and reads new stock prices
+      while True:
+         
+         # Get all alerts
+         connection = getDBConnection()
+         with connection:
+            with connection.cursor() as cursor:
+               sql = f"SELECT stock_ticker, set_price, target_price, user_id, channel_id FROM alerts"
+               cursor.execute(sql)
+               data = cursor.fetchall()
+
+         # Get current prices of all tracked tickers
+         allTrackedTickers = {}
+         for alert in data:
+            if not alert['stock_ticker'] in allTrackedTickers:
+               allTrackedTickers[alert['stock_ticker']] = yf.Ticker(alert['stock_ticker']).info.get('regularMarketPrice')
+         
+         # For each alert, check if current price has triggered alert
+         for alert in data:
+            # If alert has surpased set price
+            if (alert['target_price'] > alert['set_price'] and alert['target_price'] < allTrackedTickers[alert['stock_ticker']]) or (alert['target_price'] < alert['set_price'] and alert['target_price'] < allTrackedTickers[alert['stock_ticker']]):
+               await self.bot.get_channel(int(alert['channel_id'])).send(f":bell: Alert has been set off for <@{alert['user_id']}>:bell:\n\n{alert['stock_ticker'].upper()} has broken **{alert['target_price']}**.")
+               deleteAlert(alert['user_id'], alert['stock_ticker'], alert['target_price'])
+
+         # Run again after 600 seconds (10 minutes)
+         await asyncio.sleep(15)
+
+     
 
 # Waits for user confirmation in channel and returns True or False based on user response
 async def getUserConfirmation(client, ctx):
