@@ -7,6 +7,9 @@ Prefix:
 # Maximum alerts per user
 Max-Alerts:
 
+# Stock price update frequency (in seconds)
+Update-Frequency:
+
 # Bot status displayed on Discord
 Watching Status:
 

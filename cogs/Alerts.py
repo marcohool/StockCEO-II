@@ -177,6 +177,9 @@ class Alerts(commands.Cog):
 
    @commands.Cog.listener()
    async def on_ready(self):
+
+      with open("./config.yml", "r", encoding="utf-8") as file:
+         config = yaml.load(file, Loader=yaml.FullLoader)
       
       # Infinite loop that runs every 10 minutes and reads new stock prices
       while True:
@@ -202,10 +205,8 @@ class Alerts(commands.Cog):
                await self.bot.get_channel(int(alert['channel_id'])).send(f":bell: Alert has been set off for <@{alert['user_id']}>:bell:\n\n{alert['stock_ticker'].upper()} has broken **{alert['target_price']}**.")
                deleteAlert(alert['user_id'], alert['stock_ticker'], alert['target_price'])
 
-         # Run again after 600 seconds (10 minutes)
-         await asyncio.sleep(15)
-
-     
+         # Run again after 1 minute (60 seconds)
+         await asyncio.sleep(config['Update-Frequency'])
 
 # Waits for user confirmation in channel and returns True or False based on user response
 async def getUserConfirmation(client, ctx):
