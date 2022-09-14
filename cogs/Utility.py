@@ -12,7 +12,7 @@ class Utility(commands.Cog):
       embed.set_author(
          name="StockCEO", icon_url="https://cdn.discordapp.com/avatars/1018489544292712518/eececb83f2bb0bb0b63c8129d0657678.png")
       embed.add_field(name=":chart_with_upwards_trend: Stocks",
-                     value="`$stats [stock ticker]`\n\n`$graph[stock ticker]`\n`$graph [stock ticker] [duration]`", inline=False)
+                     value="`$stats [stock ticker]`\n\n`$graph [stock ticker]`\n`$graph [stock ticker] [duration]`", inline=False)
       embed.add_field(name=":stopwatch: Alerts",
                      value="`$addalert [stock ticker] [% change]`\n`$addalert [stock ticker] [target price]`\n\n`$removealert [stock ticker] [alert price]`\n`$removealerts [stock ticker]`\n`$clearalerts`\n\n`$viewalerts`", inline=False)
       embed.add_field(name=":wrench: Other", value="`$ping`", inline=False)

@@ -63,7 +63,7 @@ class Stocks(commands.Cog):
 
    # Display candlestick chart of selected stock and period (default 1 month)
    @commands.command()
-   async def graph(self, ctx, ticker = None, period = "1m"):
+   async def graph(self, ctx, ticker = None, period = "1mo"):
 
       # Generate graph and catch any raised exceptions
       try:
