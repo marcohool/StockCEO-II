@@ -8,13 +8,13 @@ class Utility(commands.Cog):
    @commands.command()
    async def help(self, ctx):
       embed = discord.Embed(description=(
-         "All bot comands are stated below"), color=discord.Color(value=int("36393f", 16)))
+         "All bot comands are listed below"), color=discord.Color(value=int("36393f", 16)))
       embed.set_author(
          name="StockCEO", icon_url="https://cdn.discordapp.com/avatars/1018489544292712518/eececb83f2bb0bb0b63c8129d0657678.png")
       embed.add_field(name=":chart_with_upwards_trend: Stocks",
-                     value="`$stats [stock ticker]`, `$graph [stock ticker] [(optional) duration]`", inline=False)
+                     value="`$stats [stock ticker]`\n\n`$graph[stock ticker]`\n`$graph [stock ticker] [duration]`", inline=False)
       embed.add_field(name=":stopwatch: Alerts",
-                     value="`$addalert [stock ticker] [% change]`, `$viewalerts`", inline=False)
+                     value="`$addalert [stock ticker] [% change]`\n`$addalert [stock ticker] [target price]`\n\n`$removealert [stock ticker] [alert price]`\n`$removealerts [stock ticker]`\n`$clearalerts`\n\n`$viewalerts`", inline=False)
       embed.add_field(name=":wrench: Other", value="`$ping`", inline=False)
 
       await ctx.send(embed=embed)

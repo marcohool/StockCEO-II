@@ -110,7 +110,7 @@ class Alerts(commands.Cog):
       await ctx.reply(f"Alerts for {ctx.author.mention}\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
 
    # Delete specific or all of a users alerts
-   @commands.command(aliases=['delete', 'deleteAlert', 'deleteAlerts', 'remove', 'removeAlerts'])
+   @commands.command(aliases=['delete', 'deleteAlert', 'deleteAlerts', 'remove', 'removeAlerts', 'clearAlerts'])
    async def removeAlert(self, ctx, ticker = None, alertPrice = 0):
 
       # Check if message is from same user in same channel and y or n
