@@ -45,13 +45,13 @@ class Alerts(commands.Cog):
 
       # Validate difference is a number
       if not difference.isnumeric():
-         await ctx.send("Please enter a valid number for the difference")
+         await ctx.reply("Please enter a valid number for the difference")
          return
       
       # If direct price is given, check it lies in boundary +- 25%
       if priceGiven:
          if currentPrice*1.25 < int(difference) or currentPrice*0.75 > int(difference):
-            await ctx.send("The maximum difference to set an alert for is +/- 25%")
+            await ctx.reply("The maximum difference to set an alert for is +/- 25%")
             return
          else:
             targetPrice = int(difference)
@@ -60,7 +60,7 @@ class Alerts(commands.Cog):
       else:
        # Validate range difference
          if int(difference) > 25:
-            await ctx.send("The maximum difference to set an alert for is +/- 25%")
+            await ctx.reply("The maximum difference to set an alert for is +/- 25%")
             return
          else:
             # Calculate target price
@@ -107,14 +107,11 @@ class Alerts(commands.Cog):
          ticker = yf.Ticker(result.get('stock_ticker'))
          resultsMessage += f"\n{ticker.info.get('shortName')} ({result.get('stock_ticker').upper()}) : **{formatNumb(result.get('target_price'))} {ticker.info.get('currency')}** *currently {formatNumb(round(ticker.info.get('regularMarketPrice'), 2))}*"
       
-      await ctx.reply(f"**Alerts for {ctx.author.mention}**\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
+      await ctx.reply(f"Alerts for {ctx.author.mention}\n{resultsMessage}\n\nYou will be tagged in the channel you created the alert when the stocks reach their respective value.")
 
    # Delete specific or all of a users alerts
-   @commands.command(aliases=['deleteAlert', 'remove', 'delete', 'removeAlerts', 'deleteAlerts'])
+   @commands.command(aliases=['delete', 'deleteAlert', 'deleteAlerts', 'remove', 'removeAlerts'])
    async def removeAlert(self, ctx, ticker = None, alertPrice = 0):
-
-      # Get connection
-      connection = getDBConnection()
 
       # Check if message is from same user in same channel and y or n
       def check(msg):
@@ -122,7 +119,7 @@ class Alerts(commands.Cog):
 
       # If no ticker selected, confirm delete all
       if ticker is None or ticker == "all":
-         await ctx.send("You are about to delete all your alerts. Are you sure you want to proceed? (Y/N)")
+         await ctx.reply("You are about to delete all your alerts. Are you sure you want to proceed? (Y/N)")
 
          # Await confirmation
          try:
@@ -132,42 +129,98 @@ class Alerts(commands.Cog):
          
          # Delete all alerts from user
          if msg.content.lower() == "yes" or msg.content.lower() == 'y':
-            with connection:
-               with connection.cursor() as cursor:
-                  sql = f"DELETE FROM alerts WHERE user_id = %s"
-                  cursor.execute(sql, ctx.author.id)
-                  connection.commit()
-                  await ctx.reply("All your alerts have been deleted")
+            deleteAlert(ctx.author.id)
+            await ctx.reply("All your alerts have been deleted")
             return
 
          if msg.content.lower() == "no" or 'n':
-            return
+            await msg.add_reaction('\N{THUMBS UP SIGN}')
 
-      # Search for ticker in alerts from user
-      with connection:
-         with connection.cursor() as cursor:
-            sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
-            cursor.execute(sql, ctx.author.id)
-            results = cursor.fetchall()
+      # If user has specified what ticker to remove
+      else:
 
-      # If no alerts retreived
-      if cursor.rowcount == 0:
-         await ctx.send(f"You have no alerts set for {ticker.upper()}")
-         return
-      
-      # If user has multiple alerts for given ticker and no specific alert is selected
-      if cursor.rowcount > 1 and alertPrice == 0:
-         await ctx.send(f"You are about to delete all alerts for {ticker.upper()}, are you sure you want to proceed? (Y/N)")
-         
-         # Await response 
-         try:
-            msg = await self.bot.wait_for("message", check = check, timeout = 15)
-         except asyncio.TimeoutError:
+         # Get all of users alerts
+         allUserAlerts = getAllUserAlerts(ctx.author.id)
+
+         # Get user alerts of ticker provided
+         relevantUserAlerts = []
+         for alert in allUserAlerts:
+            if alert['stock_ticker'] == ticker.lower():
+               relevantUserAlerts.append(alert)
+
+         # If no alerts retreived
+         if not relevantUserAlerts:
+            await ctx.reply(f"You have no alerts set for that ticker")
             return
          
-         if msg.content.lower() == "yes" or 'y':
-            await ctx.send("yes")
-         
+         # If user has multiple alerts for given ticker and no specific alert is selected
+         elif len(relevantUserAlerts) > 1 and alertPrice == 0:
+            await ctx.reply(f"You are about to delete all alerts for {ticker.upper()}, are you sure you want to proceed? (Y/N)")
+            
+            # Await response 
+            try:
+               msg = await self.bot.wait_for("message", check = check, timeout = 15)
+            except asyncio.TimeoutError:
+               return
+            
+            if msg.content.lower() == "yes" or 'y':
+               # Delete all user alerts of provided ticker
+               deleteAlert(ctx.author.id, ticker)
+               await ctx.reply(f"All alerts for {ticker.upper()} have been deleted")
+            
+         # If user has provided the price and ticker symbol to be deleted
+         else:
+            if not any(alert['target_price'] == alertPrice for alert in relevantUserAlerts):
+               await ctx.reply(f"No alerts found for {ticker.upper()} at that price. Use `$viewalerts` to see a list of your active alerts.")
+               return 
+            
+            # Confirm remove chosen alert
+            await ctx.reply(f"Are you sure you want to remove {ticker.upper()} at {alertPrice}? (Y/N)")
+            
+            # Await response 
+            try:
+               msg = await self.bot.wait_for("message", check = check, timeout = 15)
+            except asyncio.TimeoutError:
+               return
+            
+            if msg.content.lower() == "yes" or 'y':
+               # Delete chosen alert
+               deleteAlert(ctx.author.id, ticker, alertPrice)
+               await ctx.reply("Alert removed")
+
+def getAllUserAlerts(user_id):
+
+   # Get connection
+   connection = getDBConnection()
+
+   # Search database
+   with connection:
+      with connection.cursor() as cursor:
+         sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
+         cursor.execute(sql, user_id)
+         return cursor.fetchall()
+
+
+def deleteAlert(user_id, ticker = None, price = 0):
+
+   connection = getDBConnection()
+
+   # Delete all of users alerts
+   if ticker is None and price == 0:
+      sql = f"DELETE FROM alerts WHERE user_id = %s"
+
+   # Delete all of selected ticker
+   elif ticker is not None and price == 0:
+      sql = f"DELETE FROM alerts WHERE user_id = %s AND stock_ticker = %s"
+   
+   # Delete specific alers
+   elif ticker is not None and price != 0:
+      sql = f"DELETE FROM alerts WHERE user_id = %s AND stock_ticker = %s AND target_price = %s"
+
+   with connection:
+      with connection.cursor() as cursor:
+         cursor.execute(sql, (user_id, ticker, price))
+         connection.commit()
 
 # Format large number into more readable value
 def formatNumb(number):
