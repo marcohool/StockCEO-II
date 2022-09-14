@@ -87,17 +87,10 @@ class Alerts(commands.Cog):
    @commands.command(aliases=['showAlerts', 'alerts'])
    async def viewAlerts(self, ctx):
 
-      connection = getDBConnection()
-
-      # Search database
-      with connection:
-         with connection.cursor() as cursor:
-            sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
-            cursor.execute(sql, ctx.author.id)
-            results = cursor.fetchall()
+      results = getAllUserAlerts(ctx.author.id)
             
       # If no alerts retreived
-      if cursor.rowcount == 0:
+      if not results:
          await ctx.reply("You have no alerts set.\n\nYou can add alerts by using the command `$addalert [stock ticker] [% change]`")
          return
       
@@ -122,19 +115,13 @@ class Alerts(commands.Cog):
          await ctx.reply("You are about to delete all your alerts. Are you sure you want to proceed? (Y/N)")
 
          # Await confirmation
-         try:
-            msg = await self.bot.wait_for("message", check = check, timeout = 15)
-         except asyncio.TimeoutError:
-            return
+         deleteAll = await getUserConfirmation(self, ctx)
          
          # Delete all alerts from user
-         if msg.content.lower() == "yes" or msg.content.lower() == 'y':
+         if deleteAll:
             deleteAlert(ctx.author.id)
             await ctx.reply("All your alerts have been deleted")
             return
-
-         if msg.content.lower() == "no" or 'n':
-            await msg.add_reaction('\N{THUMBS UP SIGN}')
 
       # If user has specified what ticker to remove
       else:
@@ -153,17 +140,13 @@ class Alerts(commands.Cog):
             await ctx.reply(f"You have no alerts set for that ticker")
             return
          
-         # If user has multiple alerts for given ticker and no specific alert is selected
-         elif len(relevantUserAlerts) > 1 and alertPrice == 0:
+         # If user has no specific price for alert selected
+         elif alertPrice == 0:
             await ctx.reply(f"You are about to delete all alerts for {ticker.upper()}, are you sure you want to proceed? (Y/N)")
             
             # Await response 
-            try:
-               msg = await self.bot.wait_for("message", check = check, timeout = 15)
-            except asyncio.TimeoutError:
-               return
-            
-            if msg.content.lower() == "yes" or 'y':
+            deleteSpecifcTicker = await getUserConfirmation(self, ctx)
+            if deleteSpecifcTicker:
                # Delete all user alerts of provided ticker
                deleteAlert(ctx.author.id, ticker)
                await ctx.reply(f"All alerts for {ticker.upper()} have been deleted")
@@ -178,15 +161,33 @@ class Alerts(commands.Cog):
             await ctx.reply(f"Are you sure you want to remove {ticker.upper()} at {alertPrice}? (Y/N)")
             
             # Await response 
-            try:
-               msg = await self.bot.wait_for("message", check = check, timeout = 15)
-            except asyncio.TimeoutError:
-               return
+            removeSpecificTickerPrice = await getUserConfirmation(self, ctx)
             
-            if msg.content.lower() == "yes" or 'y':
+            if removeSpecificTickerPrice:
                # Delete chosen alert
                deleteAlert(ctx.author.id, ticker, alertPrice)
                await ctx.reply("Alert removed")
+
+# Waits for user confirmation in channel and returns True or False based on user response
+async def getUserConfirmation(client, ctx):
+
+   # Verify message is sent by correct person and in correct channel
+   def check(msg):
+         return msg.author == ctx.author and msg.channel == ctx.channel and msg.content.lower() in ['y', 'yes', 'n', 'no']
+
+   # Await response 
+   try:
+      msg = await client.bot.wait_for("message", check = check, timeout = 15)
+   except asyncio.TimeoutError:
+      return
+   
+   # If confirmation is yes return true
+   if msg.content.lower() == "yes" or msg.content.lower() == 'y':
+      return True
+
+   # Else acknowledge message and return false
+   await msg.add_reaction('\N{THUMBS UP SIGN}')
+   return False
 
 def getAllUserAlerts(user_id):
 
@@ -199,7 +200,6 @@ def getAllUserAlerts(user_id):
          sql = f"SELECT stock_ticker, target_price FROM alerts WHERE user_id = %s"
          cursor.execute(sql, user_id)
          return cursor.fetchall()
-
 
 def deleteAlert(user_id, ticker = None, price = 0):
 
